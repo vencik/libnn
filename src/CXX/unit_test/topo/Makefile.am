@@ -3,13 +3,13 @@ AM_CXXFLAGS = -g -Wall -Werror -DENABLE_DEBUG
 AM_LDFLAGS  =
 
 # Unit test scripts
-#TESTS = \
-#    perceptron.sh
+TESTS = \
+    nn.sh
 
 
 # Unit test programs
-#check_PROGRAMS = \
-#    perceptron
+check_PROGRAMS = \
+    nn
 
-#perceptron_SOURCES = \
-#    perceptron.cxx
+nn_SOURCES = \
+    nn.cxx
