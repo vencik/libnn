@@ -48,6 +48,7 @@
 #include <stdexcept>
 
 
+namespace libnn {
 namespace topo {
 
 /**
@@ -792,6 +793,6 @@ class nn {
 
 };  // end of template class nn
 
-}  // end of namespace topo
+}}  // end of namespace libnn::topo
 
 #endif  // end of #ifndef libnn__topo__nn_hxx

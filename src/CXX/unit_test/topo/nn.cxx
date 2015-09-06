@@ -60,7 +60,7 @@ class identity {
 };  // end of template class identity
 
 /** Simple linear neural network model */
-typedef topo::nn<double, identity<double> > nn_t;
+typedef libnn::topo::nn<double, identity<double> > nn_t;
 
 
 /** NN topology test */
