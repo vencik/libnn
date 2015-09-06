@@ -315,9 +315,10 @@ class nn {
 
         private:
 
-        size_t      m_index;      /**< Index       */
-        type_t      m_type;       /**< Neuron type */
-        dendrites_t m_dendrites;  /**< Dendrites   */
+        size_t      m_index;      /**< Index               */
+        type_t      m_type;       /**< Neuron type         */
+        Act_fn      m_act_fn;     /**< Activation function */
+        dendrites_t m_dendrites;  /**< Dendrites           */
 
         /** Index setter */
         size_t index(size_t new_index) {
@@ -378,19 +379,29 @@ class nn {
         /**
          *  \brief  Constructor
          *
+         *  \tparam Args   Types of activation functor constructor arguments
          *  \param  index  Neuron index
          *  \param  type   Neuron type
+         *  \param  args   Activation functor constructor arguments
          */
-        neuron(size_t index, type_t type = INTERNAL):
+        template <typename... Args>
+        neuron(size_t  index,
+               type_t  type = INTERNAL,
+               Args... args)
+        :
             m_index(index),
-            m_type(type)
+            m_type(type),
+            m_act_fn(args...)
         {}
 
         /** Index getter */
         size_t index() const { return m_index; }
 
-        /** Type setter */
+        /** Type getter */
         type_t type() const { return m_type; }
+
+        /** Activation functor access */
+        Act_fn & act_fn() { return m_act_fn; }
 
         /** Dendrite count getter */
         size_t dendrite_cnt() const { return m_dendrites.size(); }
@@ -493,7 +504,7 @@ class nn {
                 arg += dend.weight * dend.source.compute_f(network_state);
             });
 
-            return this_state.f(Act_fn()(arg), true);  // override fixed value
+            return this_state.f(m_act_fn(arg), true);  // override fixed value
         }
 
     };  // end of class neuron
@@ -681,13 +692,19 @@ class nn {
      *  However, if state for the neuron is added to the NN state too,
      *  it would bee righted, again.
      *
+     *  \tparam Args  Types of activation functor constructor arguments
      *  \param  type  Neuron type
+     *  \param  args  Activation functor constructor arguments
      *
      *  \return Added neuron
      */
-    neuron & add_neuron(typename neuron::type_t type = neuron::INTERNAL) {
+    template <typename... Args>
+    neuron & add_neuron(
+        typename neuron::type_t type = neuron::INTERNAL,
+        Args...                 args)
+    {
         size_t index = m_neurons.size();
-        auto n = new neuron(index, type);
+        auto n = new neuron(index, type, args...);
         m_neurons.emplace_back(n);
         ++m_size;
 
