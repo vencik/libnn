@@ -40,6 +40,7 @@
  *  EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include "libnn/misc/fixable.hxx"
 
 #include <list>
 #include <vector>
@@ -60,212 +61,6 @@ namespace topo {
 template <typename Base_t, class Act_fn>
 class nn {
     public:
-
-    /**
-     *  \brief  Neural network state
-     *
-     *  Computational state of a neural network instance.
-     */
-    class state {
-        public:
-
-        /** Neuron state */
-        class neuron_state {
-            private:
-
-            Base_t m_f;        /**< Current activation function value */
-            bool   m_f_set;    /**< \c true iff \c m_f is set         */
-            bool   m_f_fixed;  /**< \v true iff \c m_f is fixed       */
-
-            public:
-
-            /** Constructor */
-            neuron_state():
-                m_f_set   ( false ),
-                m_f_fixed ( false )
-            {}
-
-            /** Activation function value is set */
-            bool f_set() const { return m_f_set; }
-
-            /** Activation function value is fixed */
-            bool f_fixed() const { return m_f_fixed; }
-
-            /**
-             *  \brief  Activation function value getter
-             *
-             *  The function will return the act. function value
-             *  (provided that it was set).
-             *
-             *  \return Activation function value
-             */
-            const Base_t & f() const {
-                if (!m_f_set)
-                    throw std::logic_error(
-                        "libnn::topo::nn::state::neuron_state: "
-                        "activation function undefined");
-
-                return m_f;
-            }
-
-            /**
-             *  \brief  Activation function value setter
-             *
-             *  The function will set the activation function value.
-             *  If the optional \c override_fixed parameter is \c false (default),
-             *  it will do so even though the value is marked as fixed.
-             *  Otherwise, it will throw an exception.
-             *
-             *  \param  x               Activation function value
-             *  \param  override_fixed  Override fixed value (optional)
-             *
-             *  \return Activation function value
-             */
-            const Base_t & f(const Base_t & x, bool override_fixed = false) {
-                if (m_f_fixed && !override_fixed)
-                    throw std::logic_error(
-                        "libnn::topo::nn::state::neuron_state: "
-                        "attempt to set fixed activation function value");
-
-                m_f_set = true;
-                return m_f = x;
-            }
-
-            /**
-             *  \brief  Fix activation function value
-             *
-             *  Fixes activation function value.
-             */
-            void f_fix() { m_f_fixed = true; }
-
-            /**
-             *  \brief  Set & fix activation function value
-             *
-             *  See \ref f for parameters explanation.
-             *
-             *  \param  x               Activation function value
-             *  \param  override_fixed  Override fixed value (optional)
-             */
-            void f_fix(const Base_t & x, bool override_fixed = false) {
-                f(x, override_fixed);
-                f_fix();
-            }
-
-            /**
-             *  \brief  Reset activation function value
-             *
-             *  The function unsets act. function value and removes its
-             *  fixation mark.
-             */
-            void f_reset() {
-                m_f_set = m_f_fixed = false;
-            }
-
-        };  // end of class neuron_state
-
-        private:
-
-        /** Neuron states list */
-        typedef std::vector<neuron_state> neuron_states_t;
-
-        const nn &      m_network;        /**< Neural network */
-        neuron_states_t m_neuron_states;  /**< Neuron states  */
-
-        /**
-         *  \brief  Neuron status access
-         *
-         *  \param  index  Neuron index
-         */
-        neuron_state & n_state(size_t index) {
-            if (!(index < m_neuron_states.size()))
-                throw std::range_error(
-                    "libnn::topo::nn::state: "
-                    "neuron index out of range");
-
-            return m_neuron_states[index];
-        }
-
-        public:
-
-        /**
-         *  \brief  Constructor
-         *
-         *  \param  network  Neural network
-         */
-        state(const nn & network):
-            m_network(network),
-            m_neuron_states(m_network.size())
-        {}
-
-        /**
-         *  \brief  Neuron status access
-         *
-         *  \param  index  Neuron index
-         */
-        neuron_state & operator [] (size_t index) { return n_state(index); }
-
-        /**
-         *  \brief  Reset state
-         */
-        void reset() {
-            m_network.for_each_neuron([this](const neuron & n) {
-                n_state(n.index()).f_reset();
-            });
-        }
-
-        /**
-         *  \brief  Compute
-         *
-         *  The function computes output layer activation function values
-         *  (and therefore act. function values of all neurons required
-         *  to do so).
-         */
-        void compute() {
-            m_network.for_each_output([this](const neuron & n) {
-                n.compute_f(*this);
-            });
-        }
-
-        /**
-         *  \brief  Set input
-         *
-         *  \tparam Input           Input container type (iterable)
-         *  \param  input           Input
-         *  \param  override_fixed  Override fixed value (optional)
-         */
-        template <class Input>
-        void set_input(const Input & input, bool override_fixed = false) {
-            if (input.size() != m_network.input_size())
-                throw std::range_error(
-                    "libnn::topo::nn::state: "
-                    "input dimension doesn't fit network input layer");
-
-            auto in_iter = input.begin();
-            m_network.for_each_input(
-            [this, &in_iter, override_fixed](const neuron & n) {
-                n_state(n.index()).f_fix(*in_iter, override_fixed);
-                ++in_iter;
-            });
-        }
-
-        /**
-         *  \brief  Get output
-         *
-         *  \return Output (as vector)
-         */
-        std::vector<Base_t> get_output() {
-            std::vector<Base_t> output;
-            output.reserve(m_network.output_size());
-
-            m_network.for_each_output(
-            [this, &output](const neuron & n) {
-                output.push_back(n_state(n.index()).f());
-            });
-
-            return output;
-        }
-
-    };  // end of class state
 
     /**
      *  \brief  Neuron
@@ -400,8 +195,11 @@ class nn {
         /** Type getter */
         type_t type() const { return m_type; }
 
-        /** Activation functor access */
+        /** Activation functor getter */
         Act_fn & act_fn() { return m_act_fn; }
+
+        /** Activation function evalueation */
+        Base_t act_fn(const Base_t & arg) const { return m_act_fn(arg); }
 
         /** Dendrite count getter */
         size_t dendrite_cnt() const { return m_dendrites.size(); }
@@ -475,36 +273,31 @@ class nn {
         }
 
         /**
-         *  \brief  Compute activation function
+         *  \brief  Iterate over dendrits (const)
          *
-         *  If the neuron activation function is already computed,
-         *  the function simply returns its value.
-         *  Otherwise, it performs the computation (based on input
-         *  neurons activation).
-         *  If it detects a cycle it will:
-         *  a) throw an exception if the cycle is unresolved
-         *     (i.e. dependency can't be computed)
-         *  b) re-sets the value
-         *     (to enable recurent networks)
-         *
-         *  \param  network_state  Neural network state
-         *
-         *  \return The neuron's activation function value
+         *  \tparam Fn  Injection type
+         *  \param  fn  Injection
          */
-        const Base_t & compute_f(state & network_state) const {
-            typename state::neuron_state & this_state = network_state[m_index];
-
-            if (this_state.f_fixed()) return this_state.f();
-
-            this_state.f_fix();  // won't do this again
-
-            Base_t arg = 0;
+        template <class Fn>
+        void for_each_dendrite(Fn fn) const {
             std::for_each(m_dendrites.begin(), m_dendrites.end(),
-            [&arg, &network_state](const dendrite & dend) {
-                arg += dend.weight * dend.source.compute_f(network_state);
+            [fn](const dendrite & dend) {
+                fn(dend);
             });
+        }
 
-            return this_state.f(m_act_fn(arg), true);  // override fixed value
+        /**
+         *  \brief  Iterate over dendrits
+         *
+         *  \tparam Fn  Injection type
+         *  \param  fn  Injection
+         */
+        template <class Fn>
+        void for_each_dendrite(Fn fn) {
+            std::for_each(m_dendrites.begin(), m_dendrites.end(),
+            [fn](dendrite & dend) {
+                fn(dend);
+            });
         }
 
     };  // end of class neuron
@@ -686,11 +479,50 @@ class nn {
     }
 
     /**
+     *  \brief  Get neuron by index
+     *
+     *  The function provides neuron by ts index (in O(1) time).
+     *  If no such neuron exists, an exception is thrown.
+     *
+     *  \param  index  Neuron index
+     *
+     *  \return Neuron
+     */
+    neuron & get_neuron(size_t index) {
+        neuron * n;
+
+        if (!(index < m_neurons.size()) || NULL == (n = m_neurons[index].get()))
+            throw std::range_error(
+                "libnn::nn::get_neuron: invalid index");
+
+        return *n;
+    }
+
+    /**
+     *  \brief  Get neuron by index (const)
+     *
+     *  The function provides neuron by ts index (in O(1) time).
+     *  If no such neuron exists, an exception is thrown.
+     *
+     *  \param  index  Neuron index
+     *
+     *  \return Neuron
+     */
+    const neuron & get_neuron(size_t index) const {
+        neuron * n;
+
+        if (!(index < m_neurons.size()) || NULL == (n = m_neurons[index].get()))
+            throw std::range_error(
+                "libnn::nn::get_neuron: invalid index");
+
+        return *n;
+    }
+
+    /**
      *  \brief  Add neuron
      *
-     *  Note that this invalidates any existing \ref state instances.
-     *  However, if state for the neuron is added to the NN state too,
-     *  it would bee righted, again.
+     *  Note that this invalidates any existing indexation-based objects
+     *  created for the former state of the object.
      *
      *  \tparam Args  Types of activation functor constructor arguments
      *  \param  type  Neuron type
@@ -717,8 +549,8 @@ class nn {
      *  \brief  Remove neuron
      *
      *  Note that this technically doesn't invalidates any existing
-     *  \ref state instances, since the removed neuron state will
-     *  simply not be used (although it's still there).
+     *  indexation-based objects, as long as you only access existing
+     *  neurons' indices.
      *
      *  \param  n  Neuron to remove
      */
@@ -739,7 +571,7 @@ class nn {
      *  \brief  Reindex network
      *
      *  Reassigns neurons indices so that there are no gaps.
-     *  Note that this invalidates any existing \ref state!
+     *  Note that this invalidates any existing indexation-based objects!
      */
     void reindex() {
         neurons_t neurons;

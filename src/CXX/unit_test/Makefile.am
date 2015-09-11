@@ -1,4 +1,3 @@
 SUBDIRS = \
-    topo \
     math \
     ml

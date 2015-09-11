@@ -1,5 +1,5 @@
 /**
- *  Neural network topology unit test
+ *  Neural network computation unit test
  *
  *  \date    2015/09/05
  *  \author  Vaclav Krpec  <vencik@razdva.cz>
@@ -41,6 +41,7 @@
 #include "config.hxx"
 
 #include <libnn/topo/nn.hxx>
+#include <libnn/ml/computation.hxx>
 
 #include <vector>
 #include <algorithm>
@@ -62,9 +63,12 @@ class identity {
 /** Simple linear neural network model */
 typedef libnn::topo::nn<double, identity<double> > nn_t;
 
+/** Simple linear neural network computation */
+typedef libnn::ml::computation<double, identity<double> > computation_t;
 
-/** NN topology test */
-static int test_nn() {
+
+/** NN computation test */
+static int test_computation() {
     std::cout << "NN topology test BEGIN" << std::endl;
 
     int error_cnt = 0;
@@ -128,18 +132,11 @@ static int test_nn() {
     // Compute
     //
 
-    nn_t::state nn_state(nn);
+    computation_t nn_comp(nn);
 
-    // Set input
     const std::vector<double> input({1, 2, 3, 4});
 
-    nn_state.set_input(input);
-
-    // Compute
-    nn_state.compute();
-
-    // Get output
-    auto output = nn_state.get_output();
+    auto output = nn_comp(input);
 
     std::cout << "Output:";
     std::for_each(output.begin(), output.end(), [](double x) {
@@ -187,7 +184,7 @@ static int main_impl(int argc, char * const argv[]) {
     int exit_code = 64;  // pessimistic assumption
 
     do {  // pragmatic do ... while (0) loop allowing for breaks
-        if (0 != (exit_code = test_nn())) break;
+        if (0 != (exit_code = test_computation())) break;
 
     } while (0);  // end of pragmatic loop
 
