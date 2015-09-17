@@ -1,7 +1,7 @@
 /**
- *  Neural network computation unit test
+ *  Neural network backpropagation algorithm unit test
  *
- *  \date    2015/09/05
+ *  \date    2015/09/13
  *  \author  Vaclav Krpec  <vencik@razdva.cz>
  *
  *
@@ -41,7 +41,7 @@
 #include "config.hxx"
 
 #include <libnn/topo/nn.hxx>
-#include <libnn/ml/computation.hxx>
+#include <libnn/ml/backpropagation.hxx>
 
 #include <vector>
 #include <algorithm>
@@ -58,18 +58,22 @@ class identity {
     /** Identity function */
     Base_t operator () (const Base_t & x) const { return x; }
 
+    /** Identity derivation (i.e. 1) */
+    Base_t d(const Base_t & x) const { return 1; }
+
 };  // end of template class identity
 
 /** Simple linear neural network model */
 typedef libnn::topo::nn<double, identity<double> > nn_t;
 
-/** Simple linear neural network computation */
-typedef libnn::ml::computation<double, identity<double> > computation_t;
+/** Simple linear neural network backpropagation algorithm */
+typedef libnn::ml::backpropagation<double, identity<double> >
+    backpropagation_t;
 
 
-/** NN computation test */
-static int test_computation() {
-    std::cout << "NN topology test BEGIN" << std::endl;
+/** NN backpropagation test */
+static int test_backpropagation() {
+    std::cout << "NN backpropagation test BEGIN" << std::endl;
 
     int error_cnt = 0;
 
@@ -85,21 +89,21 @@ static int test_computation() {
     nn_t::neuron & in3 = nn.add_neuron(nn_t::neuron::INPUT);
     nn_t::neuron & in4 = nn.add_neuron(nn_t::neuron::INPUT);
 
-    // Internal layer
+    // Inner layer
     nn_t::neuron & x1 = nn.add_neuron();
     nn_t::neuron & x2 = nn.add_neuron();
 
-    double in1_x1 = 0.5;
-    double in2_x1 = 0.3;
-    double in3_x1 = 0.2;
+    double in1_x1 = 0.01;
+    double in2_x1 = 0.01;
+    double in3_x1 = 0.01;
 
     x1.set_dendrite(in1, in1_x1);
     x1.set_dendrite(in2, in2_x1);
     x1.set_dendrite(in3, in3_x1);
 
-    double in2_x2 = 0.2;
-    double in3_x2 = 0.3;
-    double in4_x2 = 0.5;
+    double in2_x2 = 0.01;
+    double in3_x2 = 0.01;
+    double in4_x2 = 0.01;
 
     x2.set_dendrite(in2, in2_x2);
     x2.set_dendrite(in3, in3_x2);
@@ -110,70 +114,51 @@ static int test_computation() {
     nn_t::neuron & out2 = nn.add_neuron(nn_t::neuron::OUTPUT);
     nn_t::neuron & out3 = nn.add_neuron(nn_t::neuron::OUTPUT);
 
-    double x1_out1 = 0.2;
-    double x2_out1 = 0.8;
+    double x1_out1 = 0.01;
+    double x2_out1 = 0.01;
 
     out1.set_dendrite(x1, x1_out1);
     out1.set_dendrite(x2, x2_out1);
 
-    double x1_out2 = 0.5;
-    double x2_out2 = 0.5;
+    double x1_out2 = 0.01;
+    double x2_out2 = 0.01;
 
     out2.set_dendrite(x1, x1_out2);
     out2.set_dendrite(x2, x2_out2);
 
-    double x1_out3 = 0.8;
-    double x2_out3 = 0.2;
+    double x1_out3 = 0.01;
+    double x2_out3 = 0.01;
 
     out3.set_dendrite(x1, x1_out3);
     out3.set_dendrite(x2, x2_out3);
 
     //
-    // Compute
+    // Train
     //
 
-    computation_t nn_comp(nn);
+    backpropagation_t nn_bprop(nn);
 
     const std::vector<double> input({1, 2, 3, 4});
+    const std::vector<double> output({4, 8, 12});
 
-    auto output = nn_comp(input);
+    double en2;
 
-    std::cout << "Output:";
-    std::for_each(output.begin(), output.end(), [](double x) {
-        std::cout << ' ' << x;
-    });
-    std::cout << std::endl;
+    for (size_t i = 0; i < 100; ++i) {
+        en2 = nn_bprop(input, output, 0.01);
 
-    // Test output
-    double x1_f =
-        input[0] * in1_x1 +
-        input[1] * in2_x1 +
-        input[2] * in3_x1;
-    double x2_f =
-        input[1] * in2_x2 +
-        input[2] * in3_x2 +
-        input[3] * in4_x2;
+        std::cout
+            << "Loop " << i + 1 << ": |err|^2 == " << en2
+            << std::endl;
+    }
 
-    double out1_f =
-        x1_f * x1_out1 +
-        x2_f * x2_out1;
-    double out2_f =
-        x1_f * x1_out2 +
-        x2_f * x2_out2;
-    double out3_f =
-        x1_f * x1_out3 +
-        x2_f * x2_out3;
+    // We can learn this
+    if (0 != en2) {
+        std::cout << "Failed to learn" << std::endl;
 
-    std::cout
-        << "Expected: "
-        << out1_f << ' '
-        << out2_f << ' '
-        << out3_f << std::endl;
-
-    if (output[0] != out1_f || output[1] != out2_f || output[2] != out3_f)
         ++error_cnt;
+    }
 
-    std::cout << "NN topology test END" << std::endl;
+    std::cout << "NN backpropagation test END" << std::endl;
 
     return error_cnt;
 }
@@ -184,7 +169,7 @@ static int main_impl(int argc, char * const argv[]) {
     int exit_code = 64;  // pessimistic assumption
 
     do {  // pragmatic do ... while (0) loop allowing for breaks
-        if (0 != (exit_code = test_computation())) break;
+        if (0 != (exit_code = test_backpropagation())) break;
 
     } while (0);  // end of pragmatic loop
 

@@ -4,12 +4,17 @@ AM_LDFLAGS  =
 
 # Unit test scripts
 TESTS = \
-    computation.sh
+    nn_func.sh \
+    backpropagation.sh
 
 
 # Unit test programs
 check_PROGRAMS = \
-    computation
+    backpropagation \
+    nn_func
 
-computation_SOURCES = \
-    computation.cxx
+backpropagation_SOURCES = \
+    backpropagation.cxx
+
+nn_func_SOURCES = \
+    nn_func.cxx

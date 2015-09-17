@@ -72,9 +72,9 @@ class nn {
 
         /** Neuron type */
         enum type_t {
-            INTERNAL = 0,  /**< Internal neuron     */
-            INPUT,         /**< Input layer neuron  */
-            OUTPUT,        /**< Output layer neuron */
+            INNER = 0,  /**< Inner neuron        */
+            INPUT,      /**< Input layer neuron  */
+            OUTPUT,     /**< Output layer neuron */
         };  // end of enum type_t
 
         /**
@@ -181,7 +181,7 @@ class nn {
          */
         template <typename... Args>
         neuron(size_t  index,
-               type_t  type = INTERNAL,
+               type_t  type = INNER,
                Args... args)
         :
             m_index(index),
@@ -194,6 +194,9 @@ class nn {
 
         /** Type getter */
         type_t type() const { return m_type; }
+
+        /** Activation functor getter (const) */
+        const Act_fn & act_fn() const { return m_act_fn; }
 
         /** Activation functor getter */
         Act_fn & act_fn() { return m_act_fn; }
@@ -328,6 +331,20 @@ class nn {
     }
 
     /**
+     *  \brief  Iterate over valid neuron pointers (const)
+     *
+     *  \tparam Fn  Action type
+     *  \param  fn  Action
+     */
+    template <class Fn>
+    void for_each_neuron_ptr(Fn fn) const {
+        std::for_each(m_neurons.begin(), m_neurons.end(),
+        [fn](const neuron_ptr & n_ptr) {
+            if (n_ptr) fn(n_ptr);
+        });
+    }
+
+    /**
      *  \brief  Resolve I/O layer
      *
      *  The function return I/O layer definition for I/O neuron type,
@@ -339,7 +356,7 @@ class nn {
      */
     indices_t * io_resolve(typename neuron::type_t type) {
         switch (type) {
-            case neuron::INTERNAL: break;
+            case neuron::INNER: break;
 
             case neuron::INPUT:  return &m_inputs;
             case neuron::OUTPUT: return &m_outputs;
@@ -387,6 +404,11 @@ class nn {
     size_t size() const { return m_size; }
 
     /**
+     *  \brief  Neuron slot count (should you want to create an indexed vector)
+     */
+    size_t slot_cnt() const { return m_neurons.size(); }
+
+    /**
      *  \brief  Input dimension (i.e. number of input layer neurons) getter
      */
     size_t input_size() const { return m_inputs.size(); }
@@ -417,7 +439,7 @@ class nn {
      */
     template <class Fn>
     void for_each_neuron(Fn fn) const {
-        for_each_neuron_ptr([fn](neuron_ptr & n_ptr) {
+        for_each_neuron_ptr([fn](const neuron_ptr & n_ptr) {
             fn(*n_ptr);
         });
     }
@@ -532,7 +554,7 @@ class nn {
      */
     template <typename... Args>
     neuron & add_neuron(
-        typename neuron::type_t type = neuron::INTERNAL,
+        typename neuron::type_t type = neuron::INNER,
         Args...                 args)
     {
         size_t index = m_neurons.size();
@@ -611,7 +633,7 @@ class nn {
      *  \brief  Minimise network
      *
      *  First, the function prunes the network (see \ref prune).
-     *  Then it removes all internal neurons with no synapses.
+     *  Then it removes all inner neurons with no synapses.
      *  Note that this step MAY in fact alter the network functionality
      *  in case the activation function is non-zero for 0 argument.
      *  In such case, you probably don't want to do this.
@@ -628,7 +650,7 @@ class nn {
         do {
             rm_cnt = 0;
             for_each_neuron([this, &rm_cnt](neuron & n) {
-                if (n.type() == neuron::INTERNAL &&
+                if (n.type() == neuron::INNER &&
                     0 == n.dendrite_cnt())
                 {
                     remove_neuron(n);

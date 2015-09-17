@@ -2,4 +2,5 @@ mlincludedir = $(pkgincludedir)/ml
 
 mlinclude_HEADERS = \
     backpropagation.hxx \
-    computation.hxx
+    computation.hxx \
+    nn_func.hxx

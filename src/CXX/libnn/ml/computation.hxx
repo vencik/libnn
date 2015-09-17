@@ -51,26 +51,68 @@ namespace libnn {
 namespace ml {
 
 /**
- *  \brief  Computation of activation functions over a neural network
+ *  \brief  Computation of a function over a neural network
+ *
+ *  The \c computation result is evaluated on each node and stored
+ *  in \c misc::fixable wrapper (so that it is evaluated only once,
+ *  and also stops recursion in case of a cycle).
  *
  *  \tparam  Base_t  Base numeric type
- *  \tparam  Act_fn  Activation function
+ *  \tparam  Act_fn  Neuron activation function
+ *  \tparam  Fx      Function return value
  */
-template <typename Base_t, class Act_fn>
+template <typename Base_t, class Act_fn, typename Fx>
 class computation {
-    private:
+    public:
 
     /** Neural network type */
     typedef topo::nn<Base_t, Act_fn> nn_t;
 
-    /** Activation function value type */
-    typedef misc::fixable<Base_t> phi_t;
+    private:
 
-    /** Neurons' activation functions values */
-    typedef std::vector<phi_t> phi_eval_t;
+    /** Fixed function value type */
+    typedef misc::fixable<Fx> fx_t;
 
-    const nn_t & m_network;   /**< Neural network                     */
-    phi_eval_t   m_phi_eval;  /**< Neurons' act. functions evaluation */
+    /** Neuron function values */
+    typedef std::vector<fx_t> results_t;
+
+    const nn_t & m_network;  /**< Neural network             */
+    results_t    m_results;  /**< Function results           */
+    bool         m_reset;    /**< Function results are reset */
+
+    protected:
+
+    /** Check if neuron index is within bounds */
+    void check_index(size_t index) const {
+        if (!(index < m_results.size()))
+            throw std::range_error(
+                "libnn::ml::computation: "
+                "neuron index out of range");
+    }
+
+    /**
+     *  \brief  Set function evaluation for a neuron
+     *
+     *  Set & fix \c Fn evaluation for a neuron, directly.
+     *
+     *  \param  index           Neuron index
+     *  \paran  value           Function value
+     *  \param  override_fixed  Override fixed value (optional)
+     */
+    void fx(size_t index, const Fx & value, bool override_fixed = false) {
+        check_index(index);
+        m_results[index].fix(value, override_fixed);
+        m_reset = false;
+    }
+
+    /**
+     *  \brief  Function (purely virtual)
+     *
+     *  \param  n  Neuron
+     *
+     *  \return Function evaluation for \c n
+     */
+    virtual Fx f(const typename nn_t::neuron & n) = 0;
 
     public:
 
@@ -81,121 +123,83 @@ class computation {
      */
     computation(const nn_t & network):
         m_network(network),
-        m_phi_eval(m_network.size())
+        m_results(m_network.slot_cnt()),
+        m_reset(true)
     {}
 
+    /** Network getter */
+    const nn_t & network() const { return m_network; }
+
     /**
-     *  \brief  Reset state
+     *  \brief  Reset functions return values
+     *
+     *  Note that if reset is not necessary (i.e. the values are already
+     *  reset, no operation is done.
      */
     void reset() {
-        std::for_each(m_phi_eval.begin(), m_phi_eval.end(),
-        [](phi_t & f) {
-            f.reset();
+        if (m_reset) return;
+
+        std::for_each(m_results.begin(), m_results.end(),
+        [](fx_t & value) {
+            value.reset();
         });
+
+        m_reset = true;
     }
 
     /**
-     *  \biref  Evaluate activation function for a neuron
+     *  \brief  Function evaluation for a neuron (const getter)
      *
-     *  Note that the function may need to evaluate inputs, recursively.
-     *  Activation function values for each neuron is, however cached
-     *  in the \c state object.
+     *  If the function evaluation is fixed, it's returned.
+     *  Otherwise, an exception is thrown (logical error, since the instance
+     *  is constant).
+     *
+     *  \param  index  Neuron index
+     *
+     *  \return Function value for neuron with \c index
+     */
+    const Fx & fx(size_t index) const {
+        check_index(index);
+
+        const fx_t & value = m_results[index];
+
+        if (value.fixed()) return value;
+
+        throw std::logic_error(
+            "libnn::ml::computation: "
+            "function value not fixed for const instance");
+    }
+
+    /**
+     *  \brief  Evaluate function for a neuron
+     *
+     *  Note that should the function need to evaluate inputs recursively,
+     *  the values are stored (and fixed) in advance.
+     *  This eliminates repeated computations and also infinite recursion
+     *  in case of a cycle.
+     *
      *  Feel free to call this repreatedly without loss of efficiency.
      *
      *  \param  index  Neuron index
      *
-     *  \return Activation function value for neuron with \c index
+     *  \return Function value for neuron with \c index
      */
-    const Base_t & phi(size_t index) {
-        if (!(index < m_phi_eval.size()))
-            throw std::range_error(
-                "libnn::ml::computation::phi: "
-                "neuron index out of range");
+    const Fx & fx(size_t index) {
+        check_index(index);
 
-        phi_t & f = m_phi_eval[index];
+        fx_t & value = m_results[index];
 
-        if (f.fixed()) return f;
+        if (value.fixed()) return value;
 
-        f.fix();  // fix in advance in case there's a cycle
+        value.fix();  // fix in advance in case there's a cycle
+        m_reset = false;
 
         const typename nn_t::neuron & n = m_network.get_neuron(index);
 
-        Base_t net = 0;
-        n.for_each_dendrite(
-        [&net, this](const typename nn_t::neuron::dendrite & dend) {
-            net += dend.weight * phi(dend.source.index());
-        });
-
-        return f.set(n.act_fn(net), true);  // override early fixation
+        return value.set(f(n), true);  // override early fixation
     }
 
-    /**
-     *  \brief  Evaluate activation functions
-     *
-     *  The function computes output layer activation function values
-     *  (and therefore act. function values of all neurons required
-     *  to do so).
-     */
-    void compute_phi() {
-        m_network.for_each_output([this](const typename nn_t::neuron & n) {
-            phi(n.index());
-        });
-    }
-
-    /**
-     *  \brief  Set input
-     *
-     *  \tparam Input           Input container type (iterable)
-     *  \param  input           Input
-     *  \param  override_fixed  Override fixed value (optional)
-     */
-    template <class Input>
-    void set_input(const Input & input, bool override_fixed = false) {
-        if (input.size() != m_network.input_size())
-            throw std::range_error(
-                "libnn::ml::computation::set_input: "
-                "input dimension doesn't fit network input layer");
-
-        auto in_iter = input.begin();
-        m_network.for_each_input(
-        [this, &in_iter, override_fixed](const typename nn_t::neuron & n) {
-            m_phi_eval[n.index()].fix(*(in_iter++), override_fixed);
-        });
-    }
-
-    /**
-     *  \brief  Get output
-     *
-     *  \return Output (as vector)
-     */
-    std::vector<Base_t> get_output() {
-        std::vector<Base_t> output;
-        output.reserve(m_network.output_size());
-
-        m_network.for_each_output(
-        [this, &output](const typename nn_t::neuron & n) {
-            output.push_back(m_phi_eval[n.index()]);
-        });
-
-        return output;
-    }
-
-    /**
-     *  \brief  Computation
-     *
-     *  \tparam Input  Input container type (iterable)
-     *  \param  input  Input
-     *
-     *  \return Output (as vector)
-     */
-    template <class Input>
-    std::vector<Base_t> operator () (const Input & input) {
-        set_input(input);
-        compute_phi();
-        return get_output();
-    }
-
-};  // end of class computation
+};  // end of template class computation
 
 }}  // end of namespace libnn::ml
 
