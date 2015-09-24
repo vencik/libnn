@@ -199,6 +199,14 @@ class computation {
         return value.set(f(n), true);  // override early fixation
     }
 
+    private:
+
+    /** Copying is forbidden */
+    computation(const computation & orig) = delete;
+
+    /** Assignment is forbidden */
+    void operator = (const computation & rarg) = delete;
+
 };  // end of template class computation
 
 }}  // end of namespace libnn::ml

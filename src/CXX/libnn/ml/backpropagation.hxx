@@ -46,6 +46,7 @@
 #include "libnn/ml/computation.hxx"
 
 #include <vector>
+#include <list>
 #include <stdexcept>
 #include <algorithm>
 #include <cassert>
@@ -57,6 +58,9 @@ namespace ml {
 /**
  *  \brief  Backpropagation algorithm
  *
+ *  Implements the backpropagation algorithm.
+ *  Supports batch mode (i.e. update after processing of a batch of training
+ *  patterns).
  *  Note that the \c Act_fn functor must provide method
  *   d(const Base_t & x) const
  *
@@ -294,10 +298,32 @@ class backpropagation {
 
     };  // end of class backward
 
-    nn_t &              m_network;   /**< Trained neural network          */
-    const forward_map_t m_fmap;      /**< The neural network forward map  */
-    forward             m_forward;   /**< Forward stage                   */
-    backward            m_backward;  /**< Backward stage                  */
+    /** Computation slot */
+    struct comp_slot {
+        forward  fw;  /**< Forward  stage */
+        backward bw;  /**< Backward stage */
+
+        /**
+         *  \brief  Constructor
+         *
+         *  \param  network  Trained neural network
+         *  \param  fmap     The network forward map
+         */
+        comp_slot(
+            const nn_t & network,
+            const forward_map_t & fmap)
+        :
+            fw(network),
+            bw(network, fmap, fw)
+        {}
+
+    };  // end of struct comp_slot
+
+    typedef std::list<comp_slot> slots_t;  /**< Computation slot list */
+
+    nn_t &              m_network;    /**< Trained neural network         */
+    const forward_map_t m_fmap;       /**< The neural network forward map */
+    slots_t             m_slots;      /**< Computation slots              */
 
     /**
      *  \brief  Create NN forward synapses mapping
@@ -324,43 +350,39 @@ class backpropagation {
         return fmap;
     }
 
-    public:
-
     /**
-     *  \brief  Constructor
+     *  \brief  Make \c n forward/backward computation slots available
      *
-     *  \param  nn  Neural network
+     *  \param  n  Number of slots
      */
-    backpropagation(nn_t & nn):
-        m_network(nn),
-        m_fmap(create_fmap(m_network)),
-        m_forward(m_network),
-        m_backward(m_network, m_fmap, m_forward)
-    {}
+    void assert_slots(size_t n) {
+        for (size_t i = m_slots.size(); i < n; ++i)
+            m_slots.emplace_back(m_network, m_fmap);
+    }
 
     /**
-     *  \brief  Backward error propagation step
+     *  \brief  Backward error propagation: computation
      *
-     *  Computes forward error on an \c input and propagates it back.
+     *  Computes forward error on an \c input and its bacward propagation.
      *
      *  \tparam Input   Input container type (iterable)
      *  \tparam Output  Output container type (iterable)
      *  \param  input   Input
      *  \param  output  Output (desired)
-     *  \param  alpha   Learning factor
+     *  \param  slot    Computation slot
      *
      *  \return Error norm squared
      */
     template <class Input, class Output>
-    Base_t operator () (
+    Base_t compute(
         const Input  & input,
         const Output & output,
-        const Base_t & alpha)
+        comp_slot    & slot)
     {
         Base_t error_norm2 = 0;
 
         // Compute forward stage (activation func. and its argument)
-        auto error = m_forward(input);
+        auto error = slot.fw(input);
 
         // Compute error (actual output minus desired output)
         if (output.size() != error.size())
@@ -377,22 +399,116 @@ class backpropagation {
         });
 
         // Compute backward stage (delta distribution)
-        m_backward(error);
+        slot.bw(error);
 
-        // Update network
+        return error_norm2;
+    }
+
+    /**
+     *  \brief  Backward error propagation: network update
+     *
+     *  Updates the network by previously computed backward error propagation
+     *  (parametrisd by the learning factor).
+     *
+     *  \param  alpha   Learning factor
+     *  \param  slot    Computation slot
+     */
+    void update(
+        const Base_t    & alpha,
+        const comp_slot & slot)
+    {
         m_network.for_each_neuron(
-        [&alpha, this](typename nn_t::neuron & n) {
-            const auto & bw_res = this->m_backward.fx(n.index());
+        [&slot, &alpha, this](
+            typename nn_t::neuron & n)
+        {
+            const auto & bw_res = slot.bw.fx(n.index());
 
             n.for_each_dendrite(
-            [&bw_res, &alpha, this](typename nn_t::neuron::dendrite & dend) {
-                const auto & fw_res = this->m_forward.fx(dend.source.index());
+            [&slot, &alpha, &bw_res, this](
+                typename nn_t::neuron::dendrite & dend)
+            {
+                const auto & fw_res = slot.fw.fx(dend.source.index());
 
                 dend.weight -= alpha * bw_res.delta * fw_res.phi_net;
             });
         });
+    }
+
+    public:
+
+    /**
+     *  \brief  Constructor
+     *
+     *  \param  nn  Neural network
+     */
+    backpropagation(nn_t & nn):
+        m_network(nn),
+        m_fmap(create_fmap(m_network))
+    {}
+
+    /**
+     *  \brief  Run backpropagation on a single input/output pair
+     *
+     *  Implements on-line and stochastic training modes.
+     *  Update is done immediately after the computation.
+     *
+     *  \tparam Input   Input container type (iterable)
+     *  \tparam Output  Output container type (iterable)
+     *  \param  input   Input
+     *  \param  output  Output (desired)
+     *  \param  alpha   Learning factor
+     *
+     *  \return Error norm squared
+     */
+    template <class Input, class Output>
+    Base_t operator () (
+        const Input  & input,
+        const Output & output,
+        const Base_t & alpha)
+    {
+        assert_slots(1);
+
+        Base_t error_norm2 = compute(input, output, m_slots.front());
+        update(alpha, m_slots.front());
 
         return error_norm2;
+    }
+
+    /**
+     *  \brief  Run backpropagation on a training set
+     *
+     *  Implements batch training mode.
+     *  Update is done based on average error propagation
+     *  over the whole set.
+     *
+     *  \tparam TSet    Training set (iterable container of
+     *                  \c std::pair containing [input, output])
+     *  \param  set     Training set
+     *  \param  alpha   Learning factor
+     *
+     *  \return Error norm squared average
+     */
+    template <class TSet>
+    Base_t operator () (
+        const TSet   & set,
+        const Base_t & alpha)
+    {
+        size_t set_size = set.size();
+
+        assert_slots(set_size);
+
+        // Compute batch
+        Base_t error_norm2_sum = 0;
+        auto iter = set.begin();
+        for (auto slot = m_slots.begin(); slot != m_slots.end(); ++slot, ++iter)
+            error_norm2_sum += compute(iter->first, iter->second, *slot);
+
+        // Update batch
+        const Base_t alpha_div_set_size = alpha / set_size;
+        for (auto slot = m_slots.begin(); slot != m_slots.end(); ++slot)
+            update(alpha_div_set_size, *slot);
+
+        return error_norm2_sum / set_size;
     }
 
 };  // end of template class backpropagation
