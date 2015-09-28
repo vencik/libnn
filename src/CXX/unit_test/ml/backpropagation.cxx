@@ -43,6 +43,7 @@
 #include <libnn/topo/nn.hxx>
 #include <libnn/io/nn.hxx>
 #include <libnn/ml/backpropagation.hxx>
+#include <libnn/ml/nn_func.hxx>
 
 #include <vector>
 #include <algorithm>
@@ -70,6 +71,9 @@ typedef libnn::topo::nn<double, identity<double> > nn_t;
 /** Simple linear neural network backpropagation algorithm */
 typedef libnn::ml::backpropagation<double, identity<double> >
     backpropagation_t;
+
+/** Simple linear neural network function */
+typedef libnn::ml::nn_func<double, identity<double> > nn_func_t;
 
 
 /** Identity activation functor serialisation */
@@ -330,6 +334,9 @@ static int test_backpropagation_batch(
     const std::vector<double> input5({5, 10, 15, 20});
     const std::vector<double> output5({60 + 10, 40 + 20, 20 + 30});
 
+    const std::vector<double> input6({6, 12, 18, 24});
+    const std::vector<double> output6({72 + 12, 48 + 24, 24 + 36});
+
     std::vector<std::pair<
         const std::vector<double> &,
         const std::vector<double> &> > set;
@@ -354,6 +361,32 @@ static int test_backpropagation_batch(
     // We can learn this
     if (!(en2 <= sigma)) {
         std::cout << "Failed to learn" << std::endl;
+
+        ++error_cnt;
+    }
+
+    // Test
+    nn_func_t nn_func(nn);
+
+    const auto nn_output6 = nn_func(input6);
+    std::cout
+        << "f(["
+        << input6[0] << ','
+        << input6[1] << ','
+        << input6[2] << ','
+        << input6[3] << "]) == ["
+        << nn_output6[0] << ','
+        << nn_output6[1] << ','
+        << nn_output6[2] << ']'
+        << std::endl;
+
+    const double err6_0 = nn_output6[0] - output6[0];
+    const double err6_1 = nn_output6[1] - output6[1];
+    const double err6_2 = nn_output6[2] - output6[2];
+    const double err6 = err6_0 * err6_0 + err6_1 * err6_1 + err6_2 * err6_2;
+
+    if (!(err6 <= sigma)) {
+        std::cout << "Failed to generalise" << std::endl;
 
         ++error_cnt;
     }

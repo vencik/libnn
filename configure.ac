@@ -160,6 +160,7 @@ AC_CONFIG_FILES([
     src/Makefile
     src/CXX/Makefile
     src/CXX/libnn/Makefile
+    src/CXX/libnn/io/Makefile
     src/CXX/libnn/math/Makefile
     src/CXX/libnn/misc/Makefile
     src/CXX/libnn/ml/Makefile
@@ -167,5 +168,6 @@ AC_CONFIG_FILES([
     src/CXX/unit_test/Makefile
     src/CXX/unit_test/ml/Makefile
     src/CXX/unit_test/math/Makefile
+    src/Perl/Makefile
 ])
 AC_OUTPUT
