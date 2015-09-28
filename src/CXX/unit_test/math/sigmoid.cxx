@@ -1,5 +1,5 @@
 /**
- *  SIgmoid functions unit test
+ *  Sigmoid functions unit test
  *
  *  \date    2015/09/06
  *  \author  Vaclav Krpec  <vencik@razdva.cz>

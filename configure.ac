@@ -166,6 +166,7 @@ AC_CONFIG_FILES([
     src/CXX/libnn/ml/Makefile
     src/CXX/libnn/topo/Makefile
     src/CXX/unit_test/Makefile
+    src/CXX/unit_test/io/Makefile
     src/CXX/unit_test/ml/Makefile
     src/CXX/unit_test/math/Makefile
     src/Perl/Makefile

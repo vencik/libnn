@@ -1,3 +1,4 @@
 SUBDIRS = \
+    io \
     math \
     ml

@@ -391,6 +391,17 @@ class nn {
         if (NULL != layer) layer->remove(n.index());
     }
 
+    /**
+     *  \brief  Remove all synapses to a neuron
+     *
+     *  \param  n  Neuron
+     */
+    void synapses_remove(const neuron & n) {
+        for_each_neuron([&n](neuron & n_other) {
+            n_other.unset_dendrite(n);
+        });
+    }
+
     public:
 
     /**
@@ -417,6 +428,14 @@ class nn {
      *  \brief  Output dimension (i.e. number of output layer neurons) getter
      */
     size_t output_size() const { return m_outputs.size(); }
+
+    /** Clear network */
+    void clear() {
+        m_inputs.clear();
+        m_outputs.clear();
+        m_neurons.clear();
+        m_size = 0;
+    }
 
     /**
      *  \brief  Iterate over neurons
@@ -577,16 +596,51 @@ class nn {
      *  \param  n  Neuron to remove
      */
     void remove_neuron(neuron & n) {
-        io_remove(n);  // remove I/O layer entry
-
-        // Remove all synapses to the neuron
-        for_each_neuron([&n](neuron & n_other) {
-            n_other.unset_dendrite(n);
-        });
+        io_remove(n);        // remove I/O layer entry
+        synapses_remove(n);  // remove all synapses to the neuron
 
         // Destroy the neuron
         m_neurons[n.index()].reset();
         --m_size;
+    }
+
+    /**
+     *  \brief  Set neuron
+     *
+     *  Sets neuron with \c index.
+     *  Note that this invalidates any existing indexation-based objects
+     *  created for the former state of the object.
+     *
+     *  \tparam Args   Types of activation functor constructor arguments
+     *  \param  index  Neuron index
+     *  \param  type   Neuron type
+     *  \param  args   Activation functor constructor arguments
+     *
+     *  \return Set neuron
+     */
+    template <typename... Args>
+    neuron & set_neuron(
+        size_t                  index,
+        typename neuron::type_t type = neuron::INNER,
+        Args...                 args)
+    {
+        while (!(index < m_neurons.size()))
+            m_neurons.emplace_back();
+
+        if (NULL != m_neurons[index]) {
+            const auto & n = *m_neurons[index];
+            io_remove(n);        // remove I/O layer entry
+            synapses_remove(n);  // remove all synapses to the neuron
+        }
+        else
+            ++m_size;  // only increment if neuron isn't replaced
+
+        auto n = new neuron(index, type, args...);
+        m_neurons[index].reset(n);
+
+        io_add(*n);  // add I/O layer entry
+
+        return *n;
     }
 
     /**
