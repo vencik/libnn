@@ -2,7 +2,7 @@
 #define libnn__topo__nn_hxx
 
 /**
- *  Neuron model
+ *  Neural network topology
  *
  *  \date    2015/09/04
  *  \author  Vaclav Krpec  <vencik@razdva.cz>

@@ -1,1 +1,1 @@
-SUBDIRS = CXX
+SUBDIRS = CXX Perl

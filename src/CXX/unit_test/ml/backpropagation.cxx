@@ -41,6 +41,7 @@
 #include "config.hxx"
 
 #include <libnn/topo/nn.hxx>
+#include <libnn/io/nn.hxx>
 #include <libnn/ml/backpropagation.hxx>
 
 #include <vector>
@@ -69,6 +70,16 @@ typedef libnn::topo::nn<double, identity<double> > nn_t;
 /** Simple linear neural network backpropagation algorithm */
 typedef libnn::ml::backpropagation<double, identity<double> >
     backpropagation_t;
+
+
+/** Identity activation functor serialisation */
+template <typename Base_t>
+std::ostream & operator << (
+    std::ostream & out,
+    const identity<Base_t> & id)
+{
+    return out << "identity";
+}
 
 
 /**
@@ -172,6 +183,8 @@ static int test_backpropagation_online(
 
         ++error_cnt;
     }
+
+    std::cout << "Network:" << std::endl << nn;
 
     std::cout << "NN backpropagation on-line test END" << std::endl;
 
@@ -344,6 +357,8 @@ static int test_backpropagation_batch(
 
         ++error_cnt;
     }
+
+    std::cout << "Network:" << std::endl << nn;
 
     std::cout << "NN backpropagation batch test END" << std::endl;
 
