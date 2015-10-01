@@ -450,26 +450,35 @@ class backpropagation {
      *  \brief  Run backpropagation on a single input/output pair
      *
      *  Implements on-line and stochastic training modes.
-     *  Update is done immediately after the computation.
+     *  The \c Criterion functor takes one argument of error norm squared
+     *  (square of output difference norm) and returns learning factor
+     *  for the backward error propagation.
+     *  Update is done immediately after the computation,
+     *  if the \c criterion returns non-zero learning factor.
+     *  This mechanism allows for adaptive learning as well as fixed
+     *  learning factor (the \c criterion defines entirely the learning
+     *  progress and/or stop condition).
      *
-     *  \tparam Input   Input container type (iterable)
-     *  \tparam Output  Output container type (iterable)
-     *  \param  input   Input
-     *  \param  output  Output (desired)
-     *  \param  alpha   Learning factor
+     *  \tparam Input      Input container type (iterable)
+     *  \tparam Output     Output container type (iterable)
+     *  \tparam Criterion  Update criterion type
+     *  \param  input      Input
+     *  \param  output     Output (desired)
+     *  \param  criterion  Update criterion
      *
      *  \return Error norm squared
      */
-    template <class Input, class Output>
+    template <class Input, class Output, class Criterion>
     Base_t operator () (
         const Input  & input,
         const Output & output,
-        const Base_t & alpha)
+        Criterion    & criterion)
     {
         assert_slots(1);
 
         Base_t error_norm2 = compute(input, output, m_slots.front());
-        update(alpha, m_slots.front());
+        const Base_t alpha = criterion(error_norm2);
+        if (0 != alpha) update(alpha, m_slots.front());
 
         return error_norm2;
     }
@@ -479,36 +488,49 @@ class backpropagation {
      *
      *  Implements batch training mode.
      *  Update is done based on average error propagation
-     *  over the whole set.
+     *  over the whole set of training samples.
+     *  See on-line/stochastic overload for explanation of \c criterion
+     *  parameter.
+     *  Just note that the criterion takes average of the samples error
+     *  norms squared and its return value is divided by the set size
+     *  before it's applied as the learning factor per each sample.
      *
-     *  \tparam TSet    Training set (iterable container of
-     *                  \c std::pair containing [input, output])
-     *  \param  set     Training set
-     *  \param  alpha   Learning factor
+     *  \tparam TSet       Training set (iterable container of
+     *                     \c std::pair containing [input, output] samples)
+     *  \tparam Criterion  Update criterion type
+     *  \param  set        Training set
+     *  \param  criterion  Update criterion
      *
      *  \return Error norm squared average
      */
-    template <class TSet>
+    template <class TSet, class Criterion>
     Base_t operator () (
         const TSet   & set,
-        const Base_t & alpha)
+        Criterion    & criterion)
     {
         size_t set_size = set.size();
 
         assert_slots(set_size);
 
         // Compute batch
-        Base_t error_norm2_sum = 0;
+        Base_t error_norm2_avg = 0;
         auto iter = set.begin();
         for (auto slot = m_slots.begin(); slot != m_slots.end(); ++slot, ++iter)
-            error_norm2_sum += compute(iter->first, iter->second, *slot);
+            error_norm2_avg += compute(iter->first, iter->second, *slot);
+
+        error_norm2_avg /= set_size;
+
+        // Get learning factor
+        const Base_t alpha = criterion(error_norm2_avg);
 
         // Update batch
-        const Base_t alpha_div_set_size = alpha / set_size;
-        for (auto slot = m_slots.begin(); slot != m_slots.end(); ++slot)
-            update(alpha_div_set_size, *slot);
+        if (0 != alpha) {
+            const Base_t alpha4sample = alpha / set_size;
+            for (auto slot = m_slots.begin(); slot != m_slots.end(); ++slot)
+                update(alpha4sample, *slot);
+        }
 
-        return error_norm2_sum / set_size;
+        return error_norm2_avg;
     }
 
 };  // end of template class backpropagation

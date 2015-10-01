@@ -168,13 +168,18 @@ static int test_backpropagation_online(
 
     backpropagation_t nn_bprop(nn);
 
+    // Const. learning factor criterion
+    auto criterion = [alpha](double err_n2) -> double {
+        return alpha;
+    };
+
     const std::vector<double> input({1, 2, 3, 4});
     const std::vector<double> output({4, 8, 12});
 
     double en2 = 0;
 
     for (size_t i = 0; i < loops; ++i) {
-        en2 = nn_bprop(input, output, alpha);
+        en2 = nn_bprop(input, output, criterion);
 
         std::cout
             << "Loop " << i + 1 << ": |err|^2 == " << en2
@@ -318,6 +323,11 @@ static int test_backpropagation_batch(
 
     backpropagation_t nn_bprop(nn);
 
+    // Const. learning factor criterion
+    auto criterion = [alpha](double err_n2) -> double {
+        return alpha;
+    };
+
     // f([x, y, z, q]) = q[3, 2, 1] + 2[x, y, z]
     const std::vector<double> input1({1, 2, 3, 4});
     const std::vector<double> output1({12 + 2, 8 + 4, 4 + 6});
@@ -351,7 +361,7 @@ static int test_backpropagation_batch(
     double en2 = 0;
 
     for (size_t i = 0; i < loops; ++i) {
-        en2 = nn_bprop(set, alpha);
+        en2 = nn_bprop(set, criterion);
 
         std::cout
             << "Loop " << i + 1 << ": |err|^2 == " << en2
@@ -380,13 +390,15 @@ static int test_backpropagation_batch(
         << nn_output6[2] << ']'
         << std::endl;
 
-    const double err6_0 = nn_output6[0] - output6[0];
-    const double err6_1 = nn_output6[1] - output6[1];
-    const double err6_2 = nn_output6[2] - output6[2];
-    const double err6 = err6_0 * err6_0 + err6_1 * err6_1 + err6_2 * err6_2;
+    const double err6_0  = nn_output6[0] - output6[0];
+    const double err6_1  = nn_output6[1] - output6[1];
+    const double err6_2  = nn_output6[2] - output6[2];
+    const double err6_n2 = err6_0 * err6_0 + err6_1 * err6_1 + err6_2 * err6_2;
 
-    if (!(err6 <= sigma)) {
-        std::cout << "Failed to generalise" << std::endl;
+    if (!(err6_n2 <= sigma)) {
+        std::cout
+            << "Failed to generalise; |err|^2 == " << err6_n2
+            << std::endl;
 
         ++error_cnt;
     }
