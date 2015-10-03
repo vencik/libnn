@@ -72,6 +72,10 @@ typedef libnn::topo::nn<double, identity<double> > nn_t;
 typedef libnn::ml::backpropagation<double, identity<double> >
     backpropagation_t;
 
+/** Adaptive learning criterion */
+typedef libnn::ml::adaptive_learning_factor<double>
+    adaptive_learning_factor_t;
+
 /** Simple linear neural network function */
 typedef libnn::ml::nn_func<double, identity<double> > nn_func_t;
 
@@ -411,6 +415,213 @@ static int test_backpropagation_batch(
 }
 
 
+/**
+ *  \brief  NN backpropagation batch test (adaptive training)
+ *
+ *  \param  loops  Training loop max. count
+ *  \param  sigma  Acceptable error
+ *
+ *  \return Count of errors
+ */
+static int test_backpropagation_batch_adaptive(
+    size_t loops,
+    double sigma)
+{
+    std::cout << "NN adaptive backpropagation batch test BEGIN" << std::endl;
+
+    int error_cnt = 0;
+
+    //
+    // Create the network
+    //
+
+    nn_t nn;
+
+    // Input layer
+    nn_t::neuron & in1 = nn.add_neuron(nn_t::neuron::INPUT);
+    nn_t::neuron & in2 = nn.add_neuron(nn_t::neuron::INPUT);
+    nn_t::neuron & in3 = nn.add_neuron(nn_t::neuron::INPUT);
+    nn_t::neuron & in4 = nn.add_neuron(nn_t::neuron::INPUT);
+
+    // Inner layer
+/*
+    nn_t::neuron & x1 = nn.add_neuron();
+    nn_t::neuron & x2 = nn.add_neuron();
+    nn_t::neuron & x3 = nn.add_neuron();
+
+    double in1_x1 = 0.01;
+    double in2_x1 = 0.01;
+    double in3_x1 = 0.01;
+    double in4_x1 = 0.01;
+
+    x1.set_dendrite(in1, in1_x1);
+    x1.set_dendrite(in2, in2_x1);
+    x1.set_dendrite(in3, in3_x1);
+    x1.set_dendrite(in4, in4_x1);
+
+    double in1_x2 = 0.01;
+    double in2_x2 = 0.01;
+    double in3_x2 = 0.01;
+    double in4_x2 = 0.01;
+
+    x2.set_dendrite(in1, in1_x2);
+    x2.set_dendrite(in2, in2_x2);
+    x2.set_dendrite(in3, in3_x2);
+    x2.set_dendrite(in4, in4_x2);
+
+    double in1_x3 = 0.01;
+    double in2_x3 = 0.01;
+    double in3_x3 = 0.01;
+    double in4_x3 = 0.01;
+
+    x3.set_dendrite(in1, in1_x3);
+    x3.set_dendrite(in2, in2_x3);
+    x3.set_dendrite(in3, in3_x3);
+    x3.set_dendrite(in4, in4_x3);
+*/
+
+    // Output layer
+    nn_t::neuron & out1 = nn.add_neuron(nn_t::neuron::OUTPUT);
+    nn_t::neuron & out2 = nn.add_neuron(nn_t::neuron::OUTPUT);
+    nn_t::neuron & out3 = nn.add_neuron(nn_t::neuron::OUTPUT);
+
+/*
+    double x1_out1 = 0.01;
+    double x2_out1 = 0.01;
+    double x3_out1 = 0.01;
+
+    out1.set_dendrite(x1, x1_out1);
+    out1.set_dendrite(x2, x2_out1);
+    out1.set_dendrite(x3, x3_out1);
+
+    double x1_out2 = 0.01;
+    double x2_out2 = 0.01;
+    double x3_out2 = 0.01;
+
+    out2.set_dendrite(x1, x1_out2);
+    out2.set_dendrite(x2, x2_out2);
+    out2.set_dendrite(x3, x3_out2);
+
+    double x1_out3 = 0.01;
+    double x2_out3 = 0.01;
+    double x3_out3 = 0.01;
+
+    out3.set_dendrite(x1, x1_out3);
+    out3.set_dendrite(x2, x2_out3);
+    out3.set_dendrite(x3, x3_out3);
+*/
+
+    out1.set_dendrite(in1, 0.1);
+    out1.set_dendrite(in2, 0.1);
+    out1.set_dendrite(in3, 0.1);
+    out1.set_dendrite(in4, 0.1);
+
+    out2.set_dendrite(in1, 0.1);
+    out2.set_dendrite(in2, 0.1);
+    out2.set_dendrite(in3, 0.1);
+    out2.set_dendrite(in4, 0.1);
+
+    out3.set_dendrite(in1, 0.1);
+    out3.set_dendrite(in2, 0.1);
+    out3.set_dendrite(in3, 0.1);
+    out3.set_dendrite(in4, 0.1);
+
+    //
+    // Train
+    //
+
+    std::cout << "Acceptable error: " << sigma << std::endl;
+
+    backpropagation_t nn_bprop(nn);
+    adaptive_learning_factor_t criterion(sigma);
+
+    // f([x, y, z, q]) = q[3, 2, 1] + 2[x, y, z]
+    const std::vector<double> input1({1, 2, 3, 4});
+    const std::vector<double> output1({12 + 2, 8 + 4, 4 + 6});
+
+    const std::vector<double> input2({2, 4, 6, 8});
+    const std::vector<double> output2({24 + 4, 16 + 8, 8 + 12});
+
+    const std::vector<double> input3({3, 6, 9, 12});
+    const std::vector<double> output3({36 + 6, 24 + 12, 12 + 18});
+
+    const std::vector<double> input4({4, 8, 12, 16});
+    const std::vector<double> output4({48 + 8, 32 + 16, 16 + 24});
+
+    const std::vector<double> input5({5, 10, 15, 20});
+    const std::vector<double> output5({60 + 10, 40 + 20, 20 + 30});
+
+    const std::vector<double> input6({6, 12, 18, 24});
+    const std::vector<double> output6({72 + 12, 48 + 24, 24 + 36});
+
+    std::vector<std::pair<
+        const std::vector<double> &,
+        const std::vector<double> &> > set;
+    set.reserve(4);
+
+    set.emplace_back(input1, output1);
+    set.emplace_back(input2, output2);
+    set.emplace_back(input3, output3);
+    set.emplace_back(input4, output4);
+    set.emplace_back(input5, output5);
+
+    double en2 = 0;
+
+    for (size_t i = 0; i < loops; ++i) {
+        en2 = nn_bprop(set, criterion);
+
+        std::cout
+            << "Loop " << i + 1 << ": |err|^2 == " << en2
+            << std::endl;
+
+        // We use batch training; if there was not update once,
+        // there'll never be one after that
+        if (!criterion.update()) break;
+    }
+
+    // We can learn this
+    if (!(en2 <= sigma)) {
+        std::cout << "Failed to learn" << std::endl;
+
+        ++error_cnt;
+    }
+
+    // Test
+    nn_func_t nn_func(nn);
+
+    const auto nn_output6 = nn_func(input6);
+    std::cout
+        << "f(["
+        << input6[0] << ','
+        << input6[1] << ','
+        << input6[2] << ','
+        << input6[3] << "]) == ["
+        << nn_output6[0] << ','
+        << nn_output6[1] << ','
+        << nn_output6[2] << ']'
+        << std::endl;
+
+    const double err6_0  = nn_output6[0] - output6[0];
+    const double err6_1  = nn_output6[1] - output6[1];
+    const double err6_2  = nn_output6[2] - output6[2];
+    const double err6_n2 = err6_0 * err6_0 + err6_1 * err6_1 + err6_2 * err6_2;
+
+    if (!(err6_n2 <= sigma)) {
+        std::cout
+            << "Failed to generalise; |err|^2 == " << err6_n2
+            << std::endl;
+
+        ++error_cnt;
+    }
+
+    std::cout << "Network:" << std::endl << nn;
+
+    std::cout << "NN adaptive backpropagation batch test END" << std::endl;
+
+    return error_cnt;
+}
+
+
 /** Unit test */
 static int main_impl(int argc, char * const argv[]) {
     int exit_code = 64;  // pessimistic assumption
@@ -429,6 +640,9 @@ static int main_impl(int argc, char * const argv[]) {
         if (0 != exit_code) break;
 
         exit_code = test_backpropagation_batch(loops, alpha, sigma);
+        if (0 != exit_code) break;
+
+        exit_code = test_backpropagation_batch_adaptive(loops, sigma);
         if (0 != exit_code) break;
 
     } while (0);  // end of pragmatic loop

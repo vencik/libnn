@@ -535,6 +535,169 @@ class backpropagation {
 
 };  // end of template class backpropagation
 
+
+/**
+ *  \brief  Fixed learning factor backpropagation criterion
+ *
+ *  Learning criterion with constant learning factor.
+ *  Allows for specification of max. allowed error norm squared.
+ *
+ *  \tparam  Base_t  Base numeric type
+ */
+template <typename Base_t>
+class const_learning_factor {
+    private:
+
+    const Base_t m_alpha;  /**< Learning factor                 */
+    const Base_t m_sigma;  /**< Max. allowed error norm squared */
+
+    public:
+
+    /**
+     *  \brief  Constructor
+     *
+     *  \param  alpha  Learning factor
+     *  \param  sigma  Max. allowed error norm squared
+     */
+    const_learning_factor(const Base_t & alpha, const Base_t & sigma = 0):
+        m_alpha ( alpha ),
+        m_sigma ( sigma )
+    {}
+
+    /**
+     *  \brief  Criterion
+     *
+     *  \param  err_norm2  Error norm squared
+     *
+     *  \return Learning factor
+     */
+    Base_t operator () (const Base_t & err_norm2) const {
+        return err_norm2 > m_sigma ? m_alpha : 0;
+    }
+
+};  // end of template class const_learning_factor
+
+
+/**
+ *  \brief  Adaptive learning factor backpropagation criterion
+ *
+ *  This class implements a simple yet affective adaptation mechanism
+ *  for setting the learning factor so that the backpropagation algorithm
+ *  maintains fast convergency:
+ *  * The learning converges if consecutive training steps result in smaller
+ *    error norm
+ *  * There's a counter that is incremented on convergency, decremented
+ *    otherwise
+ *  * If the counter reaches a certain maximum (i.e. the learning process
+ *    overally converges well), the learning factor is increased (to speed
+ *    the convergency up)
+ *  * If the counter reaches a certain negative minimum (i.e. the learning
+ *    process seem to diverge), the learning factor is decreased (in attempt
+ *    to achieve convergency)
+ *
+ *  The functor provides a way to find out whether an update was done the last
+ *  time it was called.
+ *  For batch training, this means that once there was no update, there won't
+ *  ever be one (for the same sample set).
+ *
+ *  TODO: How to detect stagnation?
+ *
+ *  Allows for specification of max. allowed error norm squared.
+ *
+ *  \tparam  Base_t  Base numeric type
+ */
+template <typename Base_t>
+class adaptive_learning_factor {
+    private:
+
+    Base_t       m_alpha;       /**< Current learning factor          */
+    const Base_t m_sigma;       /**< Max. allowed error norm squared  */
+    bool         m_update;      /**< Last call did return non-zero    */
+    Base_t       m_last_en2;    /**< Last error norm squared          */
+    int          m_conv_cnt;    /**< Convergency/divergency counter   */
+    const int    m_conv_cmax;   /**< Convergency counter maximum      */
+    const int    m_conv_cmin;   /**< Convergency counter minimum      */
+    const Base_t m_alpha_incf;  /**< Learning factor inc. coefficient */
+    const Base_t m_alpha_decf;  /**< Learning factor dec. coefficient */
+
+    public:
+
+    /**
+     *  \brief  Constructor
+     *
+     *  \param  sigma       Max. allowed error norm squared
+     *  \param  alpha       Initial learning factor
+     *  \param  conv_cmax   Convergency counter maximum
+     *  \param  conv_cmin   Convergency counter minimum
+     *  \param  alpha_incf  Learning factor incrementation coefficient
+     *  \param  alpha_decf  Learning factor decrementation coefficient
+     */
+    adaptive_learning_factor(
+        const Base_t & sigma      = 0,
+        const Base_t & alpha      = 0.01,
+        int            conv_cmax  = 5,
+        int            conv_cmin  = -2,
+        const Base_t & alpha_incf = 1.15,
+        const Base_t & alpha_decf = 0.3)
+    :
+        m_alpha ( alpha ),
+        m_sigma ( sigma ),
+
+        m_update   ( false ),
+        m_last_en2 ( 0 ),
+        m_conv_cnt ( 0 ),
+
+        m_conv_cmax  ( conv_cmax  ),
+        m_conv_cmin  ( conv_cmin  ),
+        m_alpha_incf ( alpha_incf ),
+        m_alpha_decf ( alpha_decf )
+    {}
+
+    /** Check whether update was done last time */
+    bool update() const { return m_update; }
+
+    /**
+     *  \brief  Criterion
+     *
+     *  \param  err_norm2  Error norm squared
+     *
+     *  \return Learning factor
+     */
+    Base_t operator () (const Base_t & err_norm2) {
+        m_update = err_norm2 > m_sigma;
+        if (!m_update) return 0;  // no need for training
+
+        const bool convergency = err_norm2 < m_last_en2;
+
+        // Convergency
+        if (convergency) {
+            ++m_conv_cnt;
+
+            // Converges significantly
+            if (m_conv_cnt >= m_conv_cmax) {
+                m_conv_cnt  = 0;
+                m_alpha    *= m_alpha_incf;  // try to speed things up
+            }
+        }
+
+        // Divergency (or stagnation)
+        else {
+            --m_conv_cnt;
+
+            // Seems to diverge dangerously
+            if (m_conv_cnt <= m_conv_cmin) {
+                m_conv_cnt  = 0;
+                m_alpha    *= m_alpha_decf;  // try smaller steps
+            }
+        }
+
+        m_last_en2 = err_norm2;  // store |error|^2
+
+        return m_alpha;
+    }
+
+};  // end of template class adaptive_learning_factor
+
 }}  // end of namespace libnn::ml
 
 #endif  // end of #ifndef libnn__ml__backpropagation_hxx
