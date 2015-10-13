@@ -633,7 +633,7 @@ static int main_impl(int argc, char * const argv[]) {
     if (2 < argc) alpha = ::atof(argv[2]);
 
     double sigma = 1e-20;  // acceptable error
-    if (3 < argc) alpha = ::atof(argv[3]);
+    if (3 < argc) sigma = ::atof(argv[3]);
 
     do {  // pragmatic do ... while (0) loop allowing for breaks
         exit_code = test_backpropagation_online(loops, alpha, sigma);

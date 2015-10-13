@@ -53,27 +53,37 @@ namespace misc {
  *  Container for a value that may be fixed.
  *  The value fixation status may be checked.
  *  Fixation is only done explicitly (constructors don't fix value).
- *  Fixation may be overriden and reset.
+ *  Fixation may be soft and hard.
+ *  Soft fixation may be overriden and reset, unlike hard fixation.
  *
  *  \tparam  T  Value type
  */
 template <typename T>
 class fixable {
+    public:
+
+    /** Fixation status */
+    enum fix_t {
+        UNFIXED = 0,  /**< Value is not fixed */
+        SOFTFIX,      /**< Value fixed (soft) */
+        HARDFIX,      /**< Value fixed (hard) */
+    };  // end of enum fix_t
+
     private:
 
-    T    m_val;    /**< Current value                 */
-    bool m_fixed;  /**< \v true iff \c m_val is fixed */
+    T     m_val;  /**< Current value         */
+    fix_t m_fix;  /**< Value fixation status */
 
     public:
 
     /** Constructor */
-    fixable(): m_fixed ( false ) {}
+    fixable(): m_fix(UNFIXED) {}
 
     /** Constructor (with initialiser) */
-    fixable(const T & val): m_val(val), m_fixed(false) {}
+    fixable(const T & val): m_val(val), m_fix(UNFIXED) {}
 
-    /** Value is fixed */
-    bool fixed() const { return m_fixed; }
+    /** Value is fixed (hard or soft) */
+    bool fixed() const { return UNFIXED != m_fix; }
 
     /** Value getter */
     const T & get() const { return m_val; }
@@ -86,18 +96,28 @@ class fixable {
      *
      *  The function will set the value.
      *  If the optional \c override_fixed parameter is \c true
-     *  it will do so even though the value is marked as fixed.
-     *  Otherwise, it will throw an exception.
+     *  it will do so even though the value is marked as soft fixed.
+     *  Otherwise, it will throw an exception (which is also the case
+     *  if hard fixation override is attempted).
      *
      *  \param  val             Value
-     *  \param  override_fixed  Override fixation (optional)
+     *  \param  override_fixed  Override soft fixation (optional)
      *
      *  \return Value
      */
     const T & set(const T & val, bool override_fixed = false) {
-        if (fixed() && !override_fixed)
-            throw std::logic_error(
-                "libnn::misc::fixable: attempt to set fixed value");
+        switch (m_fix) {
+            case UNFIXED:
+                break;
+
+            case SOFTFIX:
+                if (override_fixed) break;
+
+            case HARDFIX:
+                throw std::logic_error(
+                    "libnn::misc::fixable: "
+                    "attempt to set fixed value");
+        }
 
         return m_val = val;
     }
@@ -113,8 +133,14 @@ class fixable {
      */
     const T & operator = (const T & val) { return set(val); }
 
-    /** Fix value */
-    void fix() { m_fixed = true; }
+    /**
+     *  \brief  Fix value
+     *
+     *  \param  mode  Fixation mode (optional)
+     */
+    void fix(fix_t mode = SOFTFIX) {
+        if (mode > m_fix) m_fix = mode;
+    }
 
     /**
      *  \brief  Set & fix value
@@ -123,22 +149,30 @@ class fixable {
      *
      *  \param  val             Value
      *  \param  override_fixed  Override fixation (optional)
+     *  \param  mode            Fixation mode (optional)
      */
-    void fix(const T & val, bool override_fixed = false) {
+    void fix(
+        const T & val,
+        bool      override_fixed = false,
+        fix_t     mode           = SOFTFIX)
+    {
         set(val, override_fixed);
-        fix();
+        fix(mode);
     }
 
     /**
      *  \brief  Reset value
      *
-     *  The function resets value and removes its fixation mark.
+     *  The function resets value and removes its fixation mark,
+     *  except for hard fixation (which is not altered).
      *
      *  \param  val  Initial value (optional)
      */
     void reset(const T & val = T()) {
-        m_val   = val;
-        m_fixed = false;
+        if (HARDFIX != m_fix) {
+            m_val = val;
+            m_fix = UNFIXED;
+        }
     }
 
 };  // end of template class fixable

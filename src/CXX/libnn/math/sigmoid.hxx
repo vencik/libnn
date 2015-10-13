@@ -101,6 +101,12 @@ class logistic_fn {
         return L() / (1 + exp(-K() * (x - X0())));
     }
 
+    /** Returns logistic function derivation value for \c x */
+    Base_t d(const Base_t & x) const {
+        Base_t f_x = (*this)(x);
+        return K() * (1 - f_x / L()) * f_x;
+    }
+
 };  // end of template class logistic_fn
 
 

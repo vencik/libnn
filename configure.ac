@@ -164,11 +164,13 @@ AC_CONFIG_FILES([
     src/CXX/libnn/math/Makefile
     src/CXX/libnn/misc/Makefile
     src/CXX/libnn/ml/Makefile
+    src/CXX/libnn/model/Makefile
     src/CXX/libnn/topo/Makefile
     src/CXX/unit_test/Makefile
     src/CXX/unit_test/io/Makefile
-    src/CXX/unit_test/ml/Makefile
     src/CXX/unit_test/math/Makefile
+    src/CXX/unit_test/ml/Makefile
+    src/CXX/unit_test/model/Makefile
     src/Perl/Makefile
 ])
 AC_OUTPUT

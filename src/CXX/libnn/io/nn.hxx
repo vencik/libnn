@@ -158,9 +158,9 @@ std::ostream & serialise(
         [&](const typename nn<Base_t, Act_fn>::neuron::dendrite & d) {
             out
                 << indent << "    Synapsis "
-                << indent << d.source.index() << " -> " << n.index()
-                << indent << " weight = " << d.weight
-                << indent << std::endl;
+                << d.source.index() << " -> " << n.index()
+                << " weight = " << d.weight
+                << std::endl;
         });
     });
 

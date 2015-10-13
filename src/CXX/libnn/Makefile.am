@@ -3,4 +3,5 @@ SUBDIRS = \
     io \
     math \
     misc \
-    ml
+    ml \
+    model

@@ -94,15 +94,44 @@ class computation {
      *  \brief  Set function evaluation for a neuron
      *
      *  Set & fix \c Fn evaluation for a neuron, directly.
+     *  The value is soft-fixed.
      *
      *  \param  index           Neuron index
      *  \paran  value           Function value
      *  \param  override_fixed  Override fixed value (optional)
      */
-    void fx(size_t index, const Fx & value, bool override_fixed = false) {
+    void fx(
+        size_t     index,
+        const Fx & value,
+        bool       override_fixed = false)
+    {
         check_index(index);
         m_results[index].fix(value, override_fixed);
         m_reset = false;
+    }
+
+    /**
+     *  \brief  Set function evaluation for a neuron forever
+     *
+     *  Set & fix \c Fn evaluation for a neuron, directly.
+     *  The value is hard-fixed.
+     *
+     *  IMPLEMENTATION DETAIL:
+     *  Note that unlike the \ref fx, \c const_fx doesnt't alter
+     *  the reset status; that's because reset has no effect
+     *  on hard-fixed values...
+     *
+     *  \param  index           Neuron index
+     *  \paran  value           Function value
+     *  \param  override_fixed  Override fixed value (optional)
+     */
+    void const_fx(
+        size_t     index,
+        const Fx & value,
+        bool       override_fixed = false)
+    {
+        check_index(index);
+        m_results[index].fix(value, override_fixed, fx_t::HARDFIX);
     }
 
     /**
@@ -198,6 +227,13 @@ class computation {
 
         return value.set(f(n), true);  // override early fixation
     }
+
+    /** Move constructor */
+    computation(computation && orig):
+        m_network ( orig.m_network            ),
+        m_results ( std::move(orig.m_results) ),
+        m_reset   ( orig.m_reset              )
+    {}
 
     private:
 

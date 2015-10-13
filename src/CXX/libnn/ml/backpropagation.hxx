@@ -99,6 +99,13 @@ class backpropagation {
         /** Default constructor */
         forward_result(): net(0), phi_net(0) {}
 
+        /**
+         *  \brief  Constructor (activation function hard fixation)
+         *
+         *  \param  phi  Activation function value
+         */
+        forward_result(const Base_t & phi): net(0), phi_net(phi) {}
+
     };  // end of struct forward_result
 
     /**
@@ -143,6 +150,16 @@ class backpropagation {
          *  \param  network  Neural network
          */
         forward(const nn_t & network): computation_t(network) {}
+
+        /**
+         *  \brief  Hard-fix neurons' activation function values
+         *
+         *  \param  n    Neuron index
+         *  \param  phi  Activation function value
+         */
+        void fix(size_t n, const Base_t & phi) {
+            this->const_fx(n, forward_result(phi));
+        }
 
         /**
          *  \brief  Execute the forward phase
@@ -191,6 +208,13 @@ class backpropagation {
 
         /** Default constructor */
         backward_result(): delta(0) {}
+
+        /**
+         *  \brief  Constructor (backward error propagation hard fixation)
+         *
+         *  \param  d  Backward error propagation hard fixation
+         */
+        backward_result(const Base_t & d): delta(d) {}
 
     };  // end of struct backward_result
 
@@ -268,6 +292,16 @@ class backpropagation {
         {}
 
         /**
+         *  \brief  Hard-fix neurons' backward error propagation
+         *
+         *  \param  n      Neuron index
+         *  \param  delta  Backward error propagation
+         */
+        void fix(size_t n, const Base_t & delta) {
+            this->const_fx(n, backward_result(delta));
+        }
+
+        /**
          *  \brief  Execute the backward phase
          *
          *  \param  error  Error
@@ -321,8 +355,12 @@ class backpropagation {
 
     typedef std::list<comp_slot> slots_t;  /**< Computation slot list */
 
+    /** Hard fixations list */
+    typedef std::vector<std::pair<size_t, Base_t> > fixes_t;
+
     nn_t &              m_network;    /**< Trained neural network         */
     const forward_map_t m_fmap;       /**< The neural network forward map */
+    fixes_t             m_fixes;      /**< Hard fixations list            */
     slots_t             m_slots;      /**< Computation slots              */
 
     /**
@@ -353,17 +391,33 @@ class backpropagation {
     /**
      *  \brief  Make \c n forward/backward computation slots available
      *
+     *  Fixes activation functions for neurons specified in \c m_fixes.
+     *  Since these neurons synapses are irrelevant, it also fixes
+     *  their backward propagation error (aka delta) values to 0
+     *  (meaning that the potential synapses won't be altered).
+     *  Note that such neurons have no reason to have synapses...
+     *
      *  \param  n  Number of slots
      */
     void assert_slots(size_t n) {
-        for (size_t i = m_slots.size(); i < n; ++i)
+        for (size_t i = m_slots.size(); i < n; ++i) {
             m_slots.emplace_back(m_network, m_fmap);
+
+            // Fix activation function values & backward error propagations
+            auto & slot = m_slots.back();
+
+            std::for_each(m_fixes.begin(), m_fixes.end(),
+            [&slot](const std::pair<size_t, Base_t> & fix) {
+                slot.fw.fix(fix.first, fix.second);
+                slot.bw.fix(fix.first, 0);
+            });
+        }
     }
 
     /**
      *  \brief  Backward error propagation: computation
      *
-     *  Computes forward error on an \c input and its bacward propagation.
+     *  Computes forward error on an \c input and its backward propagation.
      *
      *  \tparam Input   Input container type (iterable)
      *  \tparam Output  Output container type (iterable)
@@ -445,6 +499,34 @@ class backpropagation {
         m_network(nn),
         m_fmap(create_fmap(m_network))
     {}
+
+    /**
+     *  \brief  Constructor (with hard fixations)
+     *
+     *  Allows to set hard fixations of neurons activation function values.
+     *  The \c fixes argument shall contain \c std::pair<size_t,Base_t>
+     *  specifications.
+     *  Respective neurons' activation functions shall be set as constants.
+     *  NOTE: respective neurons' net values (sums of weighed inputs)
+     *  shall be 0 (so it's not logical for them to have any synapses).
+     *
+     *  \tparam Fixes  Container type of hard fixations (iterable)
+     *  \param  nn     Neural network
+     *  \param  fixes  Container of hard fixations
+     */
+    template <typename Fixes>
+    backpropagation(nn_t & nn, const Fixes & fixes):
+        m_network(nn),
+        m_fmap(create_fmap(m_network))
+    {
+        // Set hard fixations
+        m_fixes.reserve(fixes.size());
+
+        std::for_each(fixes.begin(), fixes.end(),
+        [this](const std::pair<size_t, Base_t> & fix) {
+            m_fixes.push_back(fix);
+        });
+    }
 
     /**
      *  \brief  Run backpropagation on a single input/output pair

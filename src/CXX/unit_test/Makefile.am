@@ -1,4 +1,5 @@
 SUBDIRS = \
-    io \
     math \
-    ml
+    io \
+    ml \
+    model

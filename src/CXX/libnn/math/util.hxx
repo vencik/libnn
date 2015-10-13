@@ -40,7 +40,10 @@
  *  EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <stdexcept>
 #include <cmath>
+#include <climits>
+#include <cassert>
 
 
 namespace libnn {
@@ -63,7 +66,7 @@ template <typename Base_t, int Value>
 class int_parameter {
     public:
 
-    /** Returns \c Value (typecatsed to \c Base_t) */
+    /** Returns \c Value (typecast to \c Base_t) */
     operator Base_t () const { return (Base_t)Value; }
 
 };  // end of template class parameter
@@ -75,7 +78,7 @@ class int_parameter {
  *  Usefull for fixation of non-type template parameters.
  *  Unfortunately, the template parameters must be integers,
  *  since C++11 doesn't allow floating point template parameters.
- *  The parameter evaluates to (typecasted) fraction of the constants.
+ *  The parameter evaluates to (typecast) fraction of the constants.
  *
  *  \tparam  Base_t       Base numeric type
  *  \tparam  Numerator    The fraction value numerator
@@ -85,12 +88,73 @@ template <typename Base_t, int Numerator, unsigned Denominator>
 class fraction_parameter {
     public:
 
-    /** Returns \c Numerator / Denominator (typecatsed to \c Base_t) */
+    /** Returns \c Numerator / Denominator (typecast to \c Base_t) */
     operator Base_t () const {
         return (Base_t)Numerator / (Base_t)Denominator;
     }
 
 };  // end of template class parameter
+
+
+/**
+ *  \brief  Random number generator of X ~ U(min, max)
+ *
+ *  Provides random variable with uniform distribution evaluation.
+ *
+ *  \tparam  Base_t       Base numeric type
+ *  \tparam  Granularity  Default precision granularity quotient
+ */
+template <
+    typename Base_t,
+    class    Granularity = int_parameter<Base_t, 1000000000> >
+class rng_uniform {
+    private:
+
+    const Base_t m_min;   /**< Minimal value         */
+    const Base_t m_max;   /**< Maximal value         */
+    const Base_t m_gran;  /**< Precision granularity */
+
+    public:
+
+    /** Default constructor; standard uniform distribution */
+    rng_uniform(): m_min(0), m_max(1), m_gran(Granularity()) {}
+
+    /**
+     *  \brief  Constructor
+     *
+     *  \param  min   Minimal value
+     *  \param  max   Maximal value
+     *  \param  gran  Precision granularity quotient
+     */
+    rng_uniform(
+        const Base_t & min,
+        const Base_t & max,
+        const Base_t & gran = Granularity())
+    :
+        m_min  ( min  ),
+        m_max  ( max  ),
+        m_gran ( gran )
+    {
+        if (!(m_min <= m_max))
+            throw std::range_error(
+                "libnn::math::random: "
+                "invalid range specified");
+    }
+
+    /**
+     *  \brief  Returns random value within [min, max]
+     */
+    Base_t operator () () const {
+        const Base_t i((Base_t)::rand() / (Base_t)INT_MAX);
+        const Base_t s((Base_t)((long long)(i * m_gran)) / m_gran);
+        const Base_t x((m_max - m_min) * s + m_min);
+
+        assert(m_min <= x && x <= m_max);
+
+        return x;
+    }
+
+};  // end of template class rng_uniform
 
 }}  // end of namespace libnn::math
 
