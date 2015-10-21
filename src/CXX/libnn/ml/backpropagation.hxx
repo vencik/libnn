@@ -630,21 +630,26 @@ template <typename Base_t>
 class const_learning_factor {
     private:
 
-    const Base_t m_alpha;  /**< Learning factor                 */
-    const Base_t m_sigma;  /**< Max. allowed error norm squared */
+    const Base_t m_alpha;   /**< Learning factor                 */
+    const Base_t m_sigma;   /**< Max. allowed error norm squared */
+    bool         m_update;  /**< Last call did return non-zero   */
 
     public:
 
     /**
      *  \brief  Constructor
      *
-     *  \param  alpha  Learning factor
      *  \param  sigma  Max. allowed error norm squared
+     *  \param  alpha  Learning factor
      */
-    const_learning_factor(const Base_t & alpha, const Base_t & sigma = 0):
-        m_alpha ( alpha ),
-        m_sigma ( sigma )
+    const_learning_factor(const Base_t & sigma, const Base_t & alpha = 0):
+        m_alpha  ( alpha ),
+        m_sigma  ( sigma ),
+        m_update ( false )
     {}
+
+    /** Check whether update was done last time */
+    bool update() const { return m_update; }
 
     /**
      *  \brief  Criterion
@@ -653,8 +658,9 @@ class const_learning_factor {
      *
      *  \return Learning factor
      */
-    Base_t operator () (const Base_t & err_norm2) const {
-        return err_norm2 > m_sigma ? m_alpha : 0;
+    Base_t operator () (const Base_t & err_norm2) {
+        m_update = err_norm2 > m_sigma;
+        return m_update ? m_alpha : 0;
     }
 
 };  // end of template class const_learning_factor

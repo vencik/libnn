@@ -71,11 +71,10 @@ template <
     class    RandWeightMin = math::fraction_parameter<Base_t, 1, 100000>,
     class    RandWeightMax = math::fraction_parameter<Base_t, 1, 1000> >
 class feed_forward {
-    private:
-
-    typedef topo::nn<Base_t, Act_fn> topo_t;  /**< Implementation topology */
-
     public:
+
+    typedef Act_fn                   act_fn_t;  /**< Activation fn type */
+    typedef topo::nn<Base_t, Act_fn> topo_t;    /**< Topology type      */
 
     /** Feature bits */
     enum {

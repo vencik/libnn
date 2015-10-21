@@ -60,16 +60,18 @@ namespace io {
  *
  *  \tparam Base_t   Base numeric type
  *  \tparam Act_fn   Activation function
+ *  \tparam RWMin    Random weight minimum
+ *  \tparam RWMax    Random weight maximum
  *  \param  out      Output stream
  *  \param  network  Neural network
  *  \param  indent   Indentation prefix
  *
  *  \return \c out
  */
-template <typename Base_t, class Act_fn>
+template <typename Base_t, class Act_fn, class RWMin, class RWMax>
 std::ostream & serialise(
     std::ostream & out,
-    const feed_forward<Base_t, Act_fn> & network,
+    const feed_forward<Base_t, Act_fn, RWMin, RWMax> & network,
     const std::string & indent = "")
 {
     out << indent << "FFNN" << std::endl;
@@ -91,15 +93,17 @@ std::ostream & serialise(
  *
  *  \tparam Base_t   Base numeric type
  *  \tparam Act_fn   Activation function
+ *  \tparam RWMin    Random weight minimum
+ *  \tparam RWMax    Random weight maximum
  *  \param  in       Input stream
  *  \param  network  Neural network
  *
  *  \return \c in
  */
-template <typename Base_t, class Act_fn>
+template <typename Base_t, class Act_fn, class RWMin, class RWMax>
 std::istream & deserialise(
     std::istream & in,
-    feed_forward<Base_t, Act_fn> & network)
+    feed_forward<Base_t, Act_fn, RWMin, RWMax> & network)
 {
     network.topology().clear();  // discard existing network topology
 
@@ -149,18 +153,18 @@ std::istream & deserialise(
 
 // (De)serialisation operators
 /** \cond */
-template <typename Base_t, class Act_fn>
+template <typename Base_t, class Act_fn, class RWMin, class RWMax>
 std::ostream & operator << (
     std::ostream & out,
-    const feed_forward<Base_t, Act_fn> & network)
+    const feed_forward<Base_t, Act_fn, RWMin, RWMax> & network)
 {
     return libnn::io::serialise(out, network);
 }
 
-template <typename Base_t, class Act_fn>
+template <typename Base_t, class Act_fn, class RWMin, class RWMax>
 std::istream & operator >> (
     std::istream & in,
-    feed_forward<Base_t, Act_fn> & network)
+    feed_forward<Base_t, Act_fn, RWMin, RWMax> & network)
 {
     return libnn::io::deserialise(in, network);
 }

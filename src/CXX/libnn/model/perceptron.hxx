@@ -67,22 +67,24 @@ template <
     class    X0 = math::int_parameter<Base_t, 0>,
     class    L  = math::int_parameter<Base_t, 1>,
     class    K  = math::int_parameter<Base_t, 1>,
-    class    RandWeightMin = math::fraction_parameter<Base_t, 1, 100000>,
-    class    RandWeightMax = math::fraction_parameter<Base_t, 1, 1000> >
+    class    RandWeightMin = math::fraction_parameter<Base_t, -1, 10000>,
+    class    RandWeightMax = math::fraction_parameter<Base_t,  1, 10000> >
 class perceptron:
     public feed_forward<
         Base_t,
         math::logistic_fn<Base_t, X0, L, K>,
         RandWeightMin, RandWeightMax>
 {
-    private:
+    public:
 
     /** Superclass type */
     typedef
-        feed_forward<Base_t, math::logistic_fn<Base_t, X0, L, K> >
+        feed_forward<
+            Base_t,
+            math::logistic_fn<Base_t, X0, L, K>,
+            RandWeightMin,
+            RandWeightMax>
         feed_forward_t;
-
-    public:
 
     /**
      *  \brief  Constructor
@@ -96,7 +98,7 @@ class perceptron:
     perceptron(
         const std::vector<size_t> & layers_spec,
         WInit                       w_init,
-        int                         features = DEFAULT)
+        int                         features = feed_forward_t::DEFAULT)
     :
         feed_forward_t(w_init, layers_spec, features)
     {}
@@ -114,7 +116,7 @@ class perceptron:
     perceptron(
         size_t input_d,
         size_t output_d,
-        int    features = DEFAULT)
+        int    features = feed_forward_t::DEFAULT)
     :
         feed_forward_t(input_d, output_d, features)
     {}
@@ -134,7 +136,7 @@ class perceptron:
         size_t input_d,
         size_t hidden_cnt,
         size_t output_d,
-        int    features = DEFAULT)
+        int    features = feed_forward_t::DEFAULT)
     :
         feed_forward_t(input_d, hidden_cnt, output_d, features)
     {}
