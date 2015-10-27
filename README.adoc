@@ -6,6 +6,7 @@ Disclaimer
 ----------
 
 *This is work in progress.*
+
 The library much far from being usable (but stay tuned ;-)
 
 
@@ -34,7 +35,7 @@ Python binding will be available.
 Build and installation
 ----------------------
 
-You need C++ compiler with support for C++11.
+You need C\++ compiler with support for C++11.
 Recent enough gcc (4.9) or newer is OK.
 You also need make and GNU autotools (automake and autoconf) and libtool.
 
@@ -69,7 +70,7 @@ You may get more help on the build configuration by issuing
 ----
 $ ./autogen.sh
 $ ./configure --help
----
+----
 
 Once the configure script is created, you don't need to run build.sh
 nor autogen.sh any more; just the obligatory
